@@ -14,19 +14,32 @@ import { toast } from "sonner";
 import { PURPOSE_LABELS, type MeetingPurpose } from "@/types";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
+import AddressSearch from "@/components/AddressSearch";
+
+const STEP_LABELS = ["모임 정보", "날짜 선택", "출발지"];
 
 export default function CreatePage() {
   const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3>(1);
+
+  // Step 1
   const [organizerName, setOrganizerName] = useState("");
   const [title, setTitle] = useState("");
   const [purpose, setPurpose] = useState<MeetingPurpose | null>(null);
+
+  // Step 2
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+
+  // Step 3
+  const [address, setAddress] = useState("");
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
+  const [noLocation, setNoLocation] = useState(false);
+
   const [loading, setLoading] = useState(false);
 
   const today = startOfDay(new Date());
   const oneMonthLater = addMonths(today, 1);
-
   const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
   const addDates = (newDates: Date[]) => {
@@ -71,14 +84,7 @@ export default function CreatePage() {
     });
   };
 
-  const isDateSelected = (date: Date) =>
-    selectedDates.some((d) => format(d, "yyyy-MM-dd") === format(date, "yyyy-MM-dd"));
-
   const handleSubmit = async () => {
-    if (!organizerName || !title || !purpose || selectedDates.length === 0) {
-      toast.error("모든 항목을 입력해주세요");
-      return;
-    }
     setLoading(true);
     try {
       const res = await fetch("/api/meetings", {
@@ -95,6 +101,22 @@ export default function CreatePage() {
       if (!res.ok) throw new Error(data.error);
 
       localStorage.setItem(`organizer_${data.meeting_id}`, data.organizer_token);
+
+      if (!noLocation && lat && lng) {
+        await fetch(`/api/meetings/${data.meeting_id}/join`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: organizerName,
+            address,
+            latitude: lat,
+            longitude: lng,
+            transport_mode: "transit",
+            voted_dates: [],
+          }),
+        });
+      }
+
       router.push(`/meeting/${data.meeting_id}?organizer=true`);
     } catch {
       toast.error("모임 생성에 실패했습니다. 다시 시도해주세요.");
@@ -105,26 +127,34 @@ export default function CreatePage() {
 
   return (
     <div className="min-h-screen px-4 py-6">
-      <div className="flex items-center gap-2 mb-6">
-        <Link href="/">
-          <Button variant="ghost" size="icon" className="rounded-full">
+      <div className="flex items-center gap-2 mb-4">
+        {step === 1 ? (
+          <Link href="/">
+            <Button variant="ghost" size="icon" className="rounded-full">
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+          </Link>
+        ) : (
+          <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}>
             <ChevronLeft className="w-5 h-5" />
           </Button>
-        </Link>
-        <h1 className="text-xl font-bold">모임 만들기</h1>
+        )}
+        <div>
+          <h1 className="text-xl font-bold">모임 만들기</h1>
+          <p className="text-xs text-gray-400">{STEP_LABELS[step - 1]}</p>
+        </div>
       </div>
 
       <div className="flex gap-2 mb-6">
         {[1, 2, 3].map((s) => (
           <div
             key={s}
-            className={`h-1.5 flex-1 rounded-full transition-colors ${
-              s <= step ? "bg-yellow-400" : "bg-gray-200"
-            }`}
+            className={`h-1.5 flex-1 rounded-full transition-colors ${s <= step ? "bg-yellow-400" : "bg-gray-200"}`}
           />
         ))}
       </div>
 
+      {/* Step 1: 모임 정보 */}
       {step === 1 && (
         <div className="space-y-5">
           <div>
@@ -145,9 +175,27 @@ export default function CreatePage() {
               className="h-12 rounded-xl text-base"
             />
           </div>
+          <div>
+            <Label className="text-base font-semibold mb-3 block">어떤 모임이에요?</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {(Object.entries(PURPOSE_LABELS) as [MeetingPurpose, string][]).map(([key, label]) => (
+                <Card
+                  key={key}
+                  className={`cursor-pointer transition-all border-2 ${
+                    purpose === key ? "border-yellow-400 bg-yellow-50" : "border-gray-100 hover:border-gray-300"
+                  }`}
+                  onClick={() => setPurpose(key)}
+                >
+                  <CardContent className="flex items-center justify-center py-5 px-3">
+                    <span className="text-base font-medium text-center">{label}</span>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
           <Button
-            className="w-full h-14 rounded-2xl bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold text-base mt-4"
-            disabled={!organizerName || !title}
+            className="w-full h-14 rounded-2xl bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold text-base"
+            disabled={!organizerName || !title || !purpose}
             onClick={() => setStep(2)}
           >
             다음
@@ -155,79 +203,25 @@ export default function CreatePage() {
         </div>
       )}
 
+      {/* Step 2: 날짜 선택 */}
       {step === 2 && (
         <div className="space-y-4">
           <div>
-            <Label className="text-base font-semibold mb-3 block">어떤 모임이에요?</Label>
-            <div className="grid grid-cols-2 gap-3">
-              {(Object.entries(PURPOSE_LABELS) as [MeetingPurpose, string][]).map(
-                ([key, label]) => (
-                  <Card
-                    key={key}
-                    className={`cursor-pointer transition-all border-2 ${
-                      purpose === key
-                        ? "border-yellow-400 bg-yellow-50"
-                        : "border-gray-100 hover:border-gray-300"
-                    }`}
-                    onClick={() => setPurpose(key)}
-                  >
-                    <CardContent className="flex items-center justify-center py-5 px-3">
-                      <span className="text-base font-medium text-center">{label}</span>
-                    </CardContent>
-                  </Card>
-                )
-              )}
-            </div>
-          </div>
-          <div className="flex gap-3 pt-2">
-            <Button
-              variant="outline"
-              className="flex-1 h-14 rounded-2xl"
-              onClick={() => setStep(1)}
-            >
-              이전
-            </Button>
-            <Button
-              className="flex-1 h-14 rounded-2xl bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
-              disabled={!purpose}
-              onClick={() => setStep(3)}
-            >
-              다음
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {step === 3 && (
-        <div className="space-y-4">
-          <div>
-            <Label className="text-base font-semibold mb-1 block">
-              언제 만날 수 있어요?
-            </Label>
+            <Label className="text-base font-semibold mb-1 block">언제 만날 수 있어요?</Label>
             <p className="text-sm text-gray-500 mb-3">여러 날짜를 선택할 수 있어요</p>
 
             <div className="flex gap-2 mb-3 flex-wrap">
-              <button
-                type="button"
-                onClick={selectThisMonth}
-                className="px-3 py-1.5 text-xs rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 font-medium hover:bg-yellow-100"
-              >
+              <button type="button" onClick={selectThisMonth}
+                className="px-3 py-1.5 text-xs rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 font-medium hover:bg-yellow-100">
                 이번달 전체
               </button>
-              <button
-                type="button"
-                onClick={selectNextMonth}
-                className="px-3 py-1.5 text-xs rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 font-medium hover:bg-yellow-100"
-              >
+              <button type="button" onClick={selectNextMonth}
+                className="px-3 py-1.5 text-xs rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 font-medium hover:bg-yellow-100">
                 다음달 전체
               </button>
               {WEEKDAYS.map((label, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => toggleWeekday(i)}
-                  className="px-3 py-1.5 text-xs rounded-lg bg-gray-50 border border-gray-200 text-gray-700 font-medium hover:bg-gray-100"
-                >
+                <button key={i} type="button" onClick={() => toggleWeekday(i)}
+                  className="px-3 py-1.5 text-xs rounded-lg bg-gray-50 border border-gray-200 text-gray-700 font-medium hover:bg-gray-100">
                   매{label}
                 </button>
               ))}
@@ -263,22 +257,64 @@ export default function CreatePage() {
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
-            <Button
-              variant="outline"
-              className="flex-1 h-14 rounded-2xl"
-              onClick={() => setStep(2)}
+          <Button
+            className="w-full h-14 rounded-2xl bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold text-base"
+            disabled={selectedDates.length === 0}
+            onClick={() => setStep(3)}
+          >
+            다음
+          </Button>
+        </div>
+      )}
+
+      {/* Step 3: 출발지 선택 */}
+      {step === 3 && (
+        <div className="space-y-5">
+          <div>
+            <Label className="text-base font-semibold mb-1 block">내 출발지는 어디예요?</Label>
+            <p className="text-sm text-gray-500 mb-4">입력하면 친구들과의 중간 지점을 계산해드려요</p>
+
+            <div
+              className={`transition-opacity ${noLocation ? "opacity-40 pointer-events-none" : ""}`}
             >
-              이전
-            </Button>
-            <Button
-              className="flex-1 h-14 rounded-2xl bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold"
-              disabled={selectedDates.length === 0 || loading}
-              onClick={handleSubmit}
-            >
-              {loading ? "만드는 중..." : "모임 만들기 🎉"}
-            </Button>
+              <AddressSearch
+                onSelect={(addr, latitude, longitude) => {
+                  setAddress(addr);
+                  setLat(latitude);
+                  setLng(longitude);
+                }}
+              />
+            </div>
+
+            <label className="flex items-center gap-3 mt-4 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={noLocation}
+                onChange={(e) => {
+                  setNoLocation(e.target.checked);
+                  if (e.target.checked) {
+                    setAddress("");
+                    setLat(null);
+                    setLng(null);
+                  }
+                }}
+                className="w-5 h-5 rounded accent-yellow-400"
+              />
+              <span className="text-sm text-gray-600">위치 상관 없음 (중간 지점 계산에서 제외)</span>
+            </label>
           </div>
+
+          <Button
+            className="w-full h-14 rounded-2xl bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold text-base"
+            disabled={(!noLocation && !lat) || loading}
+            onClick={handleSubmit}
+          >
+            {loading ? "만드는 중..." : "모임 만들기 🎉"}
+          </Button>
+
+          <p className="text-center text-xs text-gray-400">
+            출발지를 선택하거나 위치 상관 없음을 체크해주세요
+          </p>
         </div>
       )}
     </div>
