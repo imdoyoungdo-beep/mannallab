@@ -13,16 +13,20 @@ export async function GET(
 
     const { data: meeting } = await supabase
       .from('meetings')
-      .select('purpose, participants(*)')
+      .select('purpose')
       .eq('id', id)
       .single();
 
     if (!meeting) return NextResponse.json({ error: '모임을 찾을 수 없습니다' }, { status: 404 });
 
-    const locatedParticipants = meeting.participants.filter(
-      (p: { latitude: number | null; longitude: number | null }) =>
-        p.latitude !== null && p.longitude !== null
-    );
+    const { data: participants } = await supabase
+      .from('participants')
+      .select('latitude, longitude')
+      .eq('meeting_id', id)
+      .not('latitude', 'is', null)
+      .not('longitude', 'is', null);
+
+    const locatedParticipants = participants || [];
 
     if (locatedParticipants.length === 0) {
       return NextResponse.json({ places: [], midpoint: null });

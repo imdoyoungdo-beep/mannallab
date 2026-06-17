@@ -201,7 +201,7 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
           </div>
 
           <div className="space-y-3">
-            {meeting.status === "voting" && (
+            {meeting.status === "voting" && !isOrganizer && (
               <Button
                 className="w-full h-14 rounded-2xl bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold text-base"
                 onClick={() => setStep("join")}

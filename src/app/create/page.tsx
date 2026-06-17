@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { format, addMonths, startOfDay } from "date-fns";
+import { format, addMonths, startOfDay, eachDayOfInterval, endOfMonth, startOfMonth, getDay } from "date-fns";
 import { ko } from "date-fns/locale";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,40 @@ export default function CreatePage() {
 
   const today = startOfDay(new Date());
   const oneMonthLater = addMonths(today, 1);
+
+  const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+  const addDates = (newDates: Date[]) => {
+    setSelectedDates((prev) => {
+      const prevKeys = new Set(prev.map((d) => format(d, "yyyy-MM-dd")));
+      const toAdd = newDates.filter((d) => !prevKeys.has(format(d, "yyyy-MM-dd")));
+      return [...prev, ...toAdd];
+    });
+  };
+
+  const selectThisMonth = () => {
+    const end = endOfMonth(today) < oneMonthLater ? endOfMonth(today) : oneMonthLater;
+    addDates(eachDayOfInterval({ start: today, end }));
+  };
+
+  const selectNextMonth = () => {
+    const nextStart = startOfMonth(addMonths(today, 1));
+    if (nextStart > oneMonthLater) return;
+    addDates(eachDayOfInterval({ start: nextStart, end: oneMonthLater }));
+  };
+
+  const toggleWeekday = (dayIndex: number) => {
+    const allInRange = eachDayOfInterval({ start: today, end: oneMonthLater });
+    const matching = allInRange.filter((d) => getDay(d) === dayIndex);
+    const matchingKeys = matching.map((d) => format(d, "yyyy-MM-dd"));
+    const selectedKeys = new Set(selectedDates.map((d) => format(d, "yyyy-MM-dd")));
+    const allSelected = matchingKeys.every((k) => selectedKeys.has(k));
+    if (allSelected) {
+      setSelectedDates((prev) => prev.filter((d) => !matchingKeys.includes(format(d, "yyyy-MM-dd"))));
+    } else {
+      addDates(matching);
+    }
+  };
 
   const handleDateSelect = (date: Date | undefined) => {
     if (!date) return;
@@ -171,6 +205,33 @@ export default function CreatePage() {
               언제 만날 수 있어요?
             </Label>
             <p className="text-sm text-gray-500 mb-3">여러 날짜를 선택할 수 있어요</p>
+
+            <div className="flex gap-2 mb-3 flex-wrap">
+              <button
+                type="button"
+                onClick={selectThisMonth}
+                className="px-3 py-1.5 text-xs rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 font-medium hover:bg-yellow-100"
+              >
+                이번달 전체
+              </button>
+              <button
+                type="button"
+                onClick={selectNextMonth}
+                className="px-3 py-1.5 text-xs rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800 font-medium hover:bg-yellow-100"
+              >
+                다음달 전체
+              </button>
+              {WEEKDAYS.map((label, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => toggleWeekday(i)}
+                  className="px-3 py-1.5 text-xs rounded-lg bg-gray-50 border border-gray-200 text-gray-700 font-medium hover:bg-gray-100"
+                >
+                  매{label}
+                </button>
+              ))}
+            </div>
 
             <Calendar
               mode="multiple"
