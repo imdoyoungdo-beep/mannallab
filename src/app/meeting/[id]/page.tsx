@@ -93,12 +93,8 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
 
   const handleShare = async () => {
     const url = `${window.location.origin}/meeting/${id}`;
-    if (navigator.share) {
-      await navigator.share({ title: meeting?.title || "우리 만날랩?", url });
-    } else {
-      await navigator.clipboard.writeText(url);
-      toast.success("링크가 복사됐어요!");
-    }
+    await navigator.clipboard.writeText(url);
+    toast.success("링크가 복사됐어요! 친구에게 붙여넣기 해주세요 📋");
   };
 
   const handleFinalize = () => {
