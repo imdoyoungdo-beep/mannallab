@@ -31,6 +31,11 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
   const [lng, setLng] = useState<number | null>(null);
   const [transportMode, setTransportMode] = useState<"transit" | "car" | "walk">("transit");
   const [submitting, setSubmitting] = useState(false);
+  const [organizerAddress, setOrganizerAddress] = useState("");
+  const [organizerLat, setOrganizerLat] = useState<number | null>(null);
+  const [organizerLng, setOrganizerLng] = useState<number | null>(null);
+  const [organizerLocationSaved, setOrganizerLocationSaved] = useState(false);
+  const [savingOrganizerLocation, setSavingOrganizerLocation] = useState(false);
 
   useEffect(() => {
     fetchMeeting();
@@ -95,6 +100,31 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
     const url = `${window.location.origin}/meeting/${id}`;
     await navigator.clipboard.writeText(url);
     toast.success("링크가 복사됐어요! 친구에게 붙여넣기 해주세요 📋");
+  };
+
+  const handleSaveOrganizerLocation = async () => {
+    if (!organizerLat || !organizerLng || !meeting) return;
+    setSavingOrganizerLocation(true);
+    try {
+      await fetch(`/api/meetings/${id}/join`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: meeting.organizer_name,
+          address: organizerAddress,
+          latitude: organizerLat,
+          longitude: organizerLng,
+          transport_mode: "transit",
+          voted_dates: [],
+        }),
+      });
+      setOrganizerLocationSaved(true);
+      toast.success("출발지가 등록됐어요!");
+    } catch {
+      toast.error("출발지 등록에 실패했습니다");
+    } finally {
+      setSavingOrganizerLocation(false);
+    }
   };
 
   const handleFinalize = () => {
@@ -199,6 +229,35 @@ export default function MeetingPage({ params }: { params: Promise<{ id: string }
                 ))}
             </div>
           </div>
+
+          {isOrganizer && !organizerLocationSaved && (
+            <div className="mb-5 p-4 rounded-2xl border border-yellow-200 bg-yellow-50">
+              <p className="text-sm font-semibold text-gray-800 mb-2">📍 내 출발지 등록 (선택)</p>
+              <p className="text-xs text-gray-500 mb-3">등록하면 중간 지점 계산에 포함돼요</p>
+              <AddressSearch
+                onSelect={(addr, lat, lng) => {
+                  setOrganizerAddress(addr);
+                  setOrganizerLat(lat);
+                  setOrganizerLng(lng);
+                }}
+              />
+              {organizerLat && (
+                <Button
+                  className="w-full mt-3 h-10 rounded-xl bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold text-sm"
+                  disabled={savingOrganizerLocation}
+                  onClick={handleSaveOrganizerLocation}
+                >
+                  {savingOrganizerLocation ? "등록 중..." : "출발지 등록"}
+                </Button>
+              )}
+            </div>
+          )}
+
+          {organizerLocationSaved && (
+            <div className="mb-5 p-3 rounded-2xl bg-green-50 border border-green-200 text-sm text-green-700 flex items-center gap-2">
+              <span>✅</span> 내 출발지가 등록됐어요
+            </div>
+          )}
 
           <div className="space-y-3">
             {meeting.status === "voting" && !isOrganizer && (
