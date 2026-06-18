@@ -80,18 +80,8 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
   };
 
   const handleShare = async () => {
-    if (!meeting) return;
-    const text =
-      meeting.status === "confirmed"
-        ? `📅 ${meeting.title}\n📆 ${format(new Date(meeting.confirmed_date!), "M월 d일 (EEE)", { locale: ko })}\n📍 ${meeting.confirmed_place_name}\n\n우리 만날랩? 앱으로 만든 모임이에요!`
-        : `우리 만날랩? - ${meeting.title}\n날짜/장소를 확정하고 있어요!`;
-
-    if (navigator.share) {
-      await navigator.share({ text, url: window.location.origin + `/meeting/${id}` });
-    } else {
-      await navigator.clipboard.writeText(text);
-      toast.success("복사됐어요!");
-    }
+    await navigator.clipboard.writeText(`${window.location.origin}/meeting/${id}`);
+    toast.success("링크가 복사됐어요! 친구에게 붙여넣기 해주세요 📋");
   };
 
   if (loading) {
@@ -148,7 +138,7 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
             onClick={handleShare}
           >
             <Share2 className="w-4 h-4 mr-2" />
-            카카오톡으로 공유
+            결과 공유하기
           </Button>
         </div>
       )}
