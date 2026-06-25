@@ -292,11 +292,6 @@ export default function CreatePage() {
                 checked={noLocation}
                 onChange={(e) => {
                   setNoLocation(e.target.checked);
-                  if (e.target.checked) {
-                    setAddress("");
-                    setLat(null);
-                    setLng(null);
-                  }
                 }}
                 className="w-5 h-5 rounded accent-yellow-400"
               />
