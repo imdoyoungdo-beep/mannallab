@@ -14,6 +14,7 @@ interface MyMeeting extends Meeting {
 export default function MyMeetings() {
   const [meetings, setMeetings] = useState<MyMeeting[]>([]);
   const [loading, setLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(3);
 
   useEffect(() => {
     const ids: { id: string; role: "organizer" | "participant" }[] = [];
@@ -55,7 +56,7 @@ export default function MyMeetings() {
     <div className="w-full mt-8">
       <h2 className="text-sm font-semibold text-gray-500 mb-3">내 모임</h2>
       <div className="space-y-2">
-        {meetings.map((m) => {
+        {meetings.slice(0, visibleCount).map((m) => {
           const isConfirmed = m.status === "confirmed";
           const href = isConfirmed
             ? `/meeting/${m.id}/result`
@@ -96,6 +97,15 @@ export default function MyMeetings() {
           );
         })}
       </div>
+
+      {visibleCount < meetings.length && (
+        <button
+          onClick={() => setVisibleCount((c) => c + 3)}
+          className="w-full mt-2 py-3 text-sm font-medium text-gray-500 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors"
+        >
+          더보기 ({meetings.length - visibleCount}개)
+        </button>
+      )}
     </div>
   );
 }
