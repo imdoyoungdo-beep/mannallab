@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import MyMeetings from "@/components/MyMeetings";
 
 export default function Home() {
   return (
@@ -43,6 +44,8 @@ export default function Home() {
             </div>
           ))}
         </div>
+
+        <MyMeetings />
       </div>
     </main>
   );
