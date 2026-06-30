@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { type MeetingWithDetails, type KakaoPlace, PURPOSE_LABELS } from "@/types";
 import { countVotesByDate } from "@/lib/midpoint";
-import { ChevronLeft, MapPin, Phone, ExternalLink, Share2 } from "lucide-react";
+import { ChevronLeft, MapPin, Phone, ExternalLink, Share2, CalendarPlus } from "lucide-react";
 import Link from "next/link";
 
 export default function ResultPage({ params }: { params: Promise<{ id: string }> }) {
@@ -84,6 +84,24 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
     toast.success("링크가 복사됐어요! 친구에게 붙여넣기 해주세요 📋");
   };
 
+  const handleAddToCalendar = () => {
+    if (!meeting?.confirmed_date) return;
+    // 종일 일정: 시작일과 다음날(종료일)을 YYYYMMDD 형식으로 지정
+    const start = meeting.confirmed_date.replace(/-/g, "");
+    const end = format(
+      new Date(new Date(meeting.confirmed_date).getTime() + 86400000),
+      "yyyyMMdd"
+    );
+    const params = new URLSearchParams({
+      action: "TEMPLATE",
+      text: meeting.title,
+      dates: `${start}/${end}`,
+      details: `${PURPOSE_LABELS[meeting.purpose as keyof typeof PURPOSE_LABELS]} 모임\n${window.location.origin}/meeting/${id}`,
+      location: meeting.confirmed_place_address || meeting.confirmed_place_name || "",
+    });
+    window.open(`https://calendar.google.com/calendar/render?${params.toString()}`, "_blank");
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -134,7 +152,14 @@ export default function ResultPage({ params }: { params: Promise<{ id: string }>
             </div>
           </div>
           <Button
-            className="w-full mt-4 h-12 rounded-xl bg-green-500 hover:bg-green-600 text-white font-semibold"
+            className="w-full mt-4 h-12 rounded-xl bg-white border border-green-500 text-green-600 hover:bg-green-50 font-semibold"
+            onClick={handleAddToCalendar}
+          >
+            <CalendarPlus className="w-4 h-4 mr-2" />
+            구글 캘린더에 추가
+          </Button>
+          <Button
+            className="w-full mt-2 h-12 rounded-xl bg-green-500 hover:bg-green-600 text-white font-semibold"
             onClick={handleShare}
           >
             <Share2 className="w-4 h-4 mr-2" />
